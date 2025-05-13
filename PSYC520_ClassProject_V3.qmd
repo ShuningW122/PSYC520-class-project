@@ -1,0 +1,237 @@
+---
+title: "PSYC520_WangShuning_v3_FinalReport"
+author:
+  - "Shuning Wang"
+date: "`r Sys.Date()`"
+echo: false
+format:
+  gfm:
+    toc: true
+    html-math-method: webtex
+---
+
+```{r}
+#| message: false
+#| echo: false
+library(lme4)
+library(ggplot2)
+library(dplyr)
+```
+
+
+
+```{r}
+
+data <- read.csv("/Users/wangshuning/Desktop/USC/25Spring/PSYC520/project/analysis/accuracy_RT_math_summary.csv")
+
+
+data_post_training <- subset(data, Phase == "PostTraining")
+
+data_easy <- subset(data_post_training, difficulty == "easy")
+data_hard <- subset(data_post_training, difficulty == "hard")
+
+
+ggplot(data_post_training, aes(x = avg_rt, fill = difficulty)) +
+  geom_histogram(binwidth = 50, position = "dodge", color = "black") +
+  scale_fill_manual(values = c("lightblue", "lightgreen")) +
+  labs(title = "Distribution of Reaction Time in PostTraining Phase", 
+       x = "Reaction Time", 
+       y = "Frequency") +
+  theme_minimal()
+
+
+ggplot(data_post_training, aes(x = accurate_ratio, fill = difficulty)) +
+  geom_histogram(binwidth = 0.05, position = "dodge", color = "black") +
+  scale_fill_manual(values = c("lightblue", "lightgreen")) +
+  labs(title = "Distribution of Accuracy in PostTraining Phase", 
+       x = "Accuracy ratio)", 
+       y = "Frequency") +
+  theme_minimal()
+```
+
+```{r}
+data_post_training <- subset(data, Phase == "PostTraining")
+
+
+summary_stats <- data_post_training %>%
+  group_by(difficulty) %>%
+  summarise(
+    mean_rt = mean(avg_rt, na.rm = TRUE),
+    sd_rt = sd(avg_rt, na.rm = TRUE),
+    mean_accuracy = mean(accurate_ratio, na.rm = TRUE),
+    sd_accuracy = sd(accurate_ratio, na.rm = TRUE)
+  )
+
+
+print(summary_stats)
+```
+
+```{r}
+
+summary_stats <- data_post_training %>%
+  group_by(difficulty) %>%
+  summarise(
+    mean_trialsNum = mean(trialsNum),
+    se_trialsNum = sd(trialsNum) / sqrt(n())
+  ) %>%
+  ungroup()
+
+
+print(summary_stats)
+
+
+ggplot(summary_stats, aes(x = difficulty, y = mean_trialsNum, fill = difficulty)) +
+  geom_bar(stat = "identity", position = "dodge", width = 0.6) +
+  geom_errorbar(aes(ymin = mean_trialsNum - se_trialsNum, ymax = mean_trialsNum + se_trialsNum), 
+                position = position_dodge(width = 0.6), width = 0.25) +
+  labs(title = "Average Trials Number with SE for Easy and Hard Difficulty", 
+       x = "Difficulty", 
+       y = "Average Trials Number") +
+  scale_fill_manual(values = c("lightblue", "lightgreen")) +
+  theme_minimal()
+```
+
+
+
+```{r}
+
+summary_stats <- data_post_training %>%
+  group_by(difficulty, condition) %>%
+  summarise(
+    mean_trialsNum = mean(trialsNum),
+    se_trialsNum = sd(trialsNum) / sqrt(n())
+  ) %>%
+  ungroup()
+
+
+print(summary_stats)
+
+
+ggplot(summary_stats, aes(x = difficulty, y = mean_trialsNum, fill = condition)) +
+  geom_bar(stat = "identity", position = "dodge", width = 0.6) +
+  geom_errorbar(aes(ymin = mean_trialsNum - se_trialsNum, ymax = mean_trialsNum + se_trialsNum), 
+                position = position_dodge(width = 0.6), width = 0.25) +
+  labs(title = "Average Trials Number with SE for Different Conditions and Difficulty", 
+       x = "Difficulty", 
+       y = "Average Trials Number") +
+  scale_fill_manual(values = c("lightblue", "lightgreen", "lightcoral")) +  
+  theme_minimal()
+```
+
+
+
+```{r}
+data_trialByTrial<-read.csv("/Users/wangshuning/Desktop/USC/25Spring/PSYC520/project/analysis/TrialByTrial_merged_data_math.csv")
+
+```
+
+
+```{r}
+m1 <- lmer(task_rt ~ 1 +(1 |subject:condition) + (1 | difficulty) + (1|condition)+(1|condition:difficulty) , data = data_trialByTrial, subset = block == "post_training")
+
+summary(m1)
+
+vc_m1 <- as.data.frame(VarCorr(m1))
+vc_tab <- data.frame(
+    source = vc_m1$grp,
+    var = vc_m1$vcov,
+    percent = vc_m1$vcov / sum(vc_m1$vcov)
+)
+knitr::kable(vc_tab, digits = 2)
+```
+
+
+```{r}
+m2 <- lmer(task_accuracy ~ 1 +(1 |subject:condition) + (1 | difficulty) + (1|condition)+(1|condition:difficulty) , data = data_trialByTrial, subset = block == "post_training")
+
+summary(m2)
+
+vc_m2 <- as.data.frame(VarCorr(m2))
+vc_tab <- data.frame(
+    source = vc_m2$grp,
+    var = vc_m2$vcov,
+    percent = vc_m2$vcov / sum(vc_m2$vcov)
+)
+knitr::kable(vc_tab, digits = 2)
+```
+
+```{r}
+m3 <- lmer(task_rt ~ 1 +(1 |subject) + (1 | difficulty) , data = data_trialByTrial, subset = block == "post_training")
+
+summary(m3)
+
+vc_m3 <- as.data.frame(VarCorr(m3))
+vc_tab_m3 <- data.frame(
+    source = vc_m3$grp,
+    var = vc_m3$vcov,
+    percent = vc_m3$vcov / sum(vc_m3$vcov)
+)
+knitr::kable(vc_tab_m3, digits = 2)
+```
+
+
+```{r}
+m4 <- lmer(task_accuracy ~ 1 +(1 |subject) + (1 | difficulty) , data = data_trialByTrial, subset = block == "post_training")
+
+summary(m4)
+
+vc_m4 <- as.data.frame(VarCorr(m4))
+vc_tab_m4 <- data.frame(
+    source = vc_m4$grp,
+    var = vc_m4$vcov,
+    percent = vc_m4$vcov / sum(vc_m4$vcov)
+)
+knitr::kable(vc_tab_m4, digits = 2)
+```
+
+
+Decision Studies
+
+```{r}
+
+calculate_G <- function(n) {
+  term1 <- vc_tab_m3$var[1]
+  term2 <- vc_tab_m3$var[3] 
+
+  
+  G <- term1 / (term1 + term2/n)
+  return(G)
+}
+
+
+n_values <- 1:20
+G_values <- sapply(n_values, calculate_G)
+
+
+plot(n_values, G_values, type = "b", col = "blue", pch = 19, 
+     xlab = "Number of Trials (n)", ylab = "G Coefficient (for Reaction Time)",
+     main = "Change in G Coefficient with Increasing Trials Number (n)")
+grid()
+```
+
+
+```{r}
+calculate_G <- function(n) {
+  term1 <- vc_tab_m4$var[1]
+  term2 <- vc_tab_m4$var[3] 
+
+  
+  G <- term1 / (term1 + term2/n)
+  return(G)
+}
+
+
+n_values <- 1:20
+G_values <- sapply(n_values, calculate_G)
+
+
+plot(n_values, G_values, type = "b", col = "blue", pch = 19, 
+     xlab = "Number of Trials (n)", ylab = "G Coefficient (for Accuracy)",
+     main = "Change in G Coefficient with Increasing Trials Number (n)")
+grid()
+```
+
+
+
+
+
